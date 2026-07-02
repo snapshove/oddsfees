@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Odds &amp; Fees</title>
+<!-- iPhone home-screen app configuration -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Odds &amp; Fees">
+<meta name="theme-color" id="theme-color" content="#f6f7f9">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script>/* apply saved theme before first paint to avoid a flash */
+try{var _t=localStorage.getItem('theme');if(_t)document.documentElement.dataset.theme=_t}catch(e){}
+</script>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --txt:#171c22; --muted:#5d6773; --faint:#9aa4b0;
+    --line:#e2e6eb; --accent:#4a5fc9; --ring:rgba(74,95,201,.25);
+    --red:#b3362c; --red-bg:rgba(179,54,44,.08);
+    --green:#1c7f52; --green-bg:rgba(28,127,82,.09);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#101418; --card:#181d24; --txt:#e7ebef; --muted:#98a3af; --faint:#5f6a76;
+      --line:#272e37; --accent:#8b9cf0; --ring:rgba(139,156,240,.3);
+      --red:#e06b60; --red-bg:rgba(224,107,96,.12);
+      --green:#4cc08a; --green-bg:rgba(76,192,138,.12);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#101418; --card:#181d24; --txt:#e7ebef; --muted:#98a3af; --faint:#5f6a76;
+    --line:#272e37; --accent:#8b9cf0; --ring:rgba(139,156,240,.3);
+    --red:#e06b60; --red-bg:rgba(224,107,96,.12);
+    --green:#4cc08a; --green-bg:rgba(76,192,138,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html{overscroll-behavior-y:contain}
+  body{
+    background:var(--bg); color:var(--txt);
+    font-family:-apple-system,system-ui,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    font-variant-numeric:tabular-nums; line-height:1.5;
+    padding:calc(14px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+            calc(32px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+  }
+  .wrap{max-width:620px;margin:0 auto}
+  header{margin-bottom:18px}
+  .titlerow{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  header h1{font-size:22px;font-weight:650;letter-spacing:-.01em}
+  header .sub{font-size:13px;color:var(--muted);margin:2px 0 12px}
+  #theme-btn{
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+    color:var(--muted);font:inherit;font-size:17px;width:44px;height:44px;
+    cursor:pointer;line-height:1;flex:none;
+  }
+  header select{
+    width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;
+    color:var(--txt);font:inherit;font-size:16px;padding:12px 34px 12px 13px;
+    min-height:48px;outline:none;appearance:none;
+    background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),
+                     linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+    background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;
+    background-size:5px 5px;background-repeat:no-repeat;
+  }
+  header select:focus,#theme-btn:focus-visible{
+    border-color:var(--accent);box-shadow:0 0 0 3px var(--ring);outline:none;
+  }
+
+  /* converter — two columns, thumb-sized fields */
+  .conv{display:grid;grid-template-columns:1fr 1fr;gap:12px 10px;margin-bottom:16px}
+  .fld label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  .fld input{
+    width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;
+    color:var(--txt);font:inherit;font-size:18px;padding:11px 12px;outline:none;
+    min-height:48px;
+  }
+  .fld.primary input{font-size:20px;font-weight:600}
+  .fld input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+  .fld input.err{border-color:var(--red)}
+  .fld .hint{font-size:11px;color:var(--faint);margin-top:3px;min-height:15px}
+  .fld .hint.bad{color:var(--red)}
+
+  /* fair strip */
+  .fair{
+    display:flex;justify-content:center;gap:6px;align-items:baseline;
+    font-size:14px;color:var(--muted);
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+    padding:10px 0;margin-bottom:16px;
+  }
+  .fair b{color:var(--txt);font-weight:650}
+
+  /* venue cards — collapsed: name + big taker/maker odds; expanded: full detail */
+  .venue{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:14px 16px;margin-bottom:12px;
+  }
+  .venue summary{cursor:pointer;list-style:none;user-select:none;touch-action:manipulation}
+  .venue summary::-webkit-details-marker{display:none}
+  .venue summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+  .venue .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;min-height:24px}
+  .venue .head .name{font-size:15px;font-weight:650}
+  .venue .head .chev{color:var(--faint);font-size:11px;transition:transform .12s}
+  .venue[open] .head .chev{transform:rotate(180deg)}
+  .venue.min:not([open]) .head{margin-bottom:0}
+  .venue.min:not([open]) .head .name{font-weight:600;color:var(--muted)}
+  .roles{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+  .roles > * + *{border-left:1px solid var(--line);padding-left:14px}
+  .cell .role{font-size:12px;color:var(--muted);margin-bottom:1px}
+  .amrow{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+  .amrow .am{font-size:30px;font-weight:650;letter-spacing:-.01em;line-height:1.25}
+  .pill{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;white-space:nowrap}
+  .pill.cost{color:var(--red);background:var(--red-bg)}
+  .pill.rebate{color:var(--green);background:var(--green-bg)}
+  .pill.zero{color:var(--muted);background:var(--bg)}
+  .venue .detail{margin-top:10px}
+  .detail .roles + .roles{margin-top:8px}
+  .detail .kv{font-size:13px;color:var(--muted);padding:1px 0}
+  .venue .foot{
+    font-size:12px;color:var(--faint);border-top:1px solid var(--line);
+    padding-top:8px;margin-top:10px;
+  }
+
+  /* explainer */
+  details.expl-wrap{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}
+  details.expl-wrap summary{font-size:14px;color:var(--muted);cursor:pointer;user-select:none;list-style:none}
+  details.expl-wrap summary::-webkit-details-marker{display:none}
+  details.expl-wrap summary::before{content:'▸ '}
+  details.expl-wrap[open] summary::before{content:'▾ '}
+  .expl{font-size:13px;color:var(--muted);margin-top:12px}
+  .expl p{margin-bottom:10px}
+  .expl code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;
+    background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 5px;
+  }
+  .expl table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0 14px}
+  .expl th{font-weight:600;text-align:right;color:var(--muted);padding:5px 8px;border-bottom:1px solid var(--line)}
+  .expl td{text-align:right;padding:5px 8px;border-bottom:1px solid var(--line)}
+  .expl th:first-child,.expl td:first-child{text-align:left}
+  .expl ul{padding-left:18px;margin-bottom:10px}
+  .expl li{margin-bottom:5px}
+
+  footer{margin-top:20px;font-size:11.5px;color:var(--faint)}
+  footer .fail{color:var(--red);font-weight:600}
+
+  @media (prefers-reduced-motion: no-preference){
+    .fld input,header select{transition:border-color .12s,box-shadow .12s}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="titlerow">
+      <h1>Odds &amp; Fees</h1>
+      <button id="theme-btn" aria-label="Toggle dark mode" type="button"></button>
+    </div>
+    <p class="sub">Prediction-market prices as sportsbook odds, after fees.</p>
+    <select id="f-cat" aria-label="Market category"></select>
+  </header>
+
+  <div class="conv">
+    <div class="fld primary"><label for="f-cents">Price ¢</label>
+      <input id="f-cents" inputmode="decimal" autocomplete="off">
+      <div class="hint" id="h-cents"></div></div>
+    <div class="fld"><label for="f-prob">Implied %</label>
+      <input id="f-prob" inputmode="decimal" autocomplete="off">
+      <div class="hint" id="h-prob"></div></div>
+    <div class="fld primary"><label for="f-am">American</label>
+      <input id="f-am" autocomplete="off">
+      <div class="hint" id="h-am"></div></div>
+    <div class="fld"><label for="f-dec">Decimal</label>
+      <input id="f-dec" inputmode="decimal" autocomplete="off">
+      <div class="hint" id="h-dec"></div></div>
+    <div class="fld"><label for="f-frac">Fractional</label>
+      <input id="f-frac" autocomplete="off">
+      <div class="hint" id="h-frac"></div></div>
+  </div>
+
+  <div class="fair" id="fair"></div>
+
+  <div id="venues"></div>
+
+  <details class="expl-wrap">
+    <summary>Fee formulas &amp; sources</summary>
+    <div class="expl" id="expl"></div>
+  </details>
+
+  <footer>Fee schedules verified 2026-07-02 · works offline · no dependencies · <span id="test-line">self-test —</span></footer>
+</div>
+
+<script>
+/* ============================================================================
+   FEE SCHEDULES — verified 2026-07-02 against primary sources.
+   THIS FILE MIRRORS index.html — when fee schedules change, update the FEES
+   constant in BOTH files (and bump the cache version in sw.js).
+   Formula (all venues): fee = θ · C · p(1−p). This tool shows per-contract
+   cost = p + θ·p(1−p); quantity-dependent cent rounding is not modeled.
+
+   KALSHI — schedule PDF re-dated "June 2026" (~eff. 2026-06-29); rates
+     unchanged: taker θ 0.07 (S&P 500 / Nasdaq-100 series 0.035), maker θ
+     0.0175 on designated maker-fee markets only. Fees on both buys and sells.
+   POLYMARKET (offshore) — Fee Structure V2 eff. 2026-03-30, per
+     docs.polymarket.com/trading/fees: Crypto 0.07 · Sports 0.03 ·
+     Finance/Politics/Mentions/Tech 0.04 · Econ/Culture/Weather/Other 0.05 ·
+     Geopolitics 0. Makers never charged. Modeled per docs, entry side only.
+   POLYMARKET US — docs.polymarket.us/fees, eff. 2026-07-01: taker θ 0.06
+     (up from 0.05), maker θ −0.0125 (rebate). Volume taker-rebate tiers
+     ($250K+/mo → 10–50%) exist — footnoted, not modeled.
+============================================================================ */
+const FEES = {
+  verified: '2026-07-02',
+  makers: { kalshi: 0.0175, poly: 0, polyus: -0.0125 },
+  polyusTaker: 0.06,
+  categories: {
+    sports:      { label: 'Sports',                                kalshi: 0.07,  poly: 0.03 },
+    crypto:      { label: 'Crypto',                                kalshi: 0.07,  poly: 0.07 },
+    politics:    { label: 'Politics',                              kalshi: 0.07,  poly: 0.04 },
+    finance:     { label: 'Finance',                               kalshi: 0.07,  poly: 0.04 },
+    index:       { label: 'S&P 500 / Nasdaq-100 index',            kalshi: 0.035, poly: 0.04 },
+    tech:        { label: 'Tech & mentions',                       kalshi: 0.07,  poly: 0.04 },
+    econOther:   { label: 'Economics / culture / weather / other', kalshi: 0.07,  poly: 0.05 },
+    geopolitics: { label: 'Geopolitics',                           kalshi: 0.07,  poly: 0 },
+  },
+};
+const VENUES = [
+  { id: 'poly', name: 'Polymarket',
+    foot: 'Makers are never charged. Priced on entry only — official docs conflict on whether sells pay taker fees.' },
+  { id: 'kalshi', name: 'Kalshi',
+    foot: 'Maker rate applies only on designated maker-fee markets; 0 elsewhere. Fees are charged on entry and exit.' },
+  { id: 'polyus', name: 'Polymarket US', minimized: true,   // odds hidden until expanded
+    foot: 'Maker fee is a rebate. Takers doing $250K+ per month get 10–50% fee rebates — not modeled here.' },
+];
+
+function theta(venue, role, cat){
+  if (role === 'maker') return FEES.makers[venue];
+  if (venue === 'polyus') return FEES.polyusTaker;
+  return FEES.categories[cat][venue];
+}
+/* per-contract cost in $, which is also the break-even win probability */
+function effCost(p, th){ return p + th * p * (1 - p); }
+function feeCents(p, th){ return th * p * (1 - p) * 100; }
+/* overround if both sides were bought with the same fee: 2·θ·p(1−p) */
+function twoWayVig(p, th){ return 2 * th * p * (1 - p); }
+
+/* ---- odds conversions (identical to index.html) ---- */
+function decToAm(d){ if (d >= 2) return (d - 1) * 100; return -100 / (d - 1); }
+function amToDec(a){ return a > 0 ? 1 + a / 100 : 1 + 100 / (-a); }
+function decToProb(d){ return 1 / d; }
+function probToDec(p){ return 1 / p; }
+function gcd(a, b){ while (b){ [a, b] = [b, a % b]; } return a; }
+/* best rational approximation of x with denominator ≤ maxDen (continued fractions) */
+function toFraction(x, maxDen){
+  maxDen = maxDen || 100;
+  let h1 = 1, h0 = 0, k1 = 0, k0 = 1, b = x;
+  for (let i = 0; i < 64; i++){
+    const a = Math.floor(b);
+    if (k1 * a + k0 > maxDen) break;
+    [h1, h0] = [a * h1 + h0, h1];
+    [k1, k0] = [a * k1 + k0, k1];
+    const frac = b - a;
+    if (frac < 1e-12) break;
+    b = 1 / frac;
+  }
+  const g = gcd(h1, k1) || 1;
+  return [h1 / g, k1 / g];
+}
+/* standard UK price ladder for snapping ugly fractions */
+const UK_LADDER = ["1/100","1/66","1/50","1/40","1/33","1/25","1/20","1/16","1/14","1/12",
+"1/10","1/9","1/8","2/15","1/7","2/13","1/6","2/11","1/5","2/9","1/4","2/7","3/10","1/3",
+"4/11","2/5","4/9","1/2","8/15","4/7","8/13","4/6","8/11","4/5","5/6","10/11","20/21","1/1",
+"21/20","11/10","6/5","5/4","11/8","6/4","13/8","7/4","15/8","2/1","11/5","9/4","12/5","5/2",
+"13/5","11/4","14/5","3/1","16/5","10/3","7/2","15/4","4/1","9/2","5/1","11/2","6/1","13/2",
+"7/1","15/2","8/1","17/2","9/1","10/1","11/1","12/1","14/1","16/1","18/1","20/1","25/1",
+"33/1","40/1","50/1","66/1","80/1","100/1"].map(s => {
+  const [n, d] = s.split('/').map(Number); return { s, v: n / d };
+});
+function nearestUK(x){
+  let best = UK_LADDER[0];
+  for (const f of UK_LADDER) if (Math.abs(f.v - x) < Math.abs(best.v - x)) best = f;
+  return best.s;
+}
+function decToFracString(d){
+  const x = d - 1;
+  const [n, den] = toFraction(x, 100);
+  const exact = n + '/' + den;
+  if (den <= 20 || UK_LADDER.some(f => f.s === exact)) return { main: exact, approx: null };
+  return { main: exact, approx: nearestUK(x) };
+}
+function parseFraction(str){
+  const m = String(str).trim().match(/^(\d+(?:\.\d+)?)\s*[\/:]\s*(\d+(?:\.\d+)?)$/);
+  if (!m) return null;
+  const n = parseFloat(m[1]), d = parseFloat(m[2]);
+  if (!(d > 0) || n < 0) return null;
+  return 1 + n / d;
+}
+
+/* ============================================================================
+   SELF-TEST — identical assertions to index.html.
+============================================================================ */
+function runTests(){
+  const results = [];
+  const close = (name, got, want, eps) => results.push({ name, got, want,
+    pass: Math.abs(got - want) <= (eps == null ? 1e-9 : eps) });
+  const eq = (name, got, want) => results.push({ name, got, want, pass: got === want });
+
+  close('kalshi sports taker 50¢ → 51.75¢', effCost(0.5, 0.07), 0.5175);
+  close('poly sports taker 50¢ → 50.75¢',   effCost(0.5, 0.03), 0.5075);
+  close('polyus taker 50¢ → 51.50¢ (θ=0.06)', effCost(0.5, 0.06), 0.515);
+  close('polyus maker 50¢ → 49.6875¢ (rebate)', effCost(0.5, -0.0125), 0.496875);
+  close('kalshi index taker 50¢ → 50.875¢', effCost(0.5, 0.035), 0.50875);
+  close('zero fee is identity', effCost(0.3, 0), 0.3);
+  close('fee symmetric around 50¢', effCost(0.3, 0.07) - 0.3, effCost(0.7, 0.07) - 0.7);
+  close('two-way vig 50¢ θ=0.07 → 3.5%', twoWayVig(0.5, 0.07), 0.035);
+  /* −100·0.5175/0.4825 = −107.2539 */
+  close('kalshi taker 50¢ eff american ≈ −107.25',
+    decToAm(1 / effCost(0.5, 0.07)), -107.2539, 1e-3);
+
+  eq('θ kalshi taker index = 0.035', theta('kalshi', 'taker', 'index'), 0.035);
+  eq('θ polyus taker = 0.06 (2026-07-01 schedule)', theta('polyus', 'taker', 'sports'), 0.06);
+  eq('θ poly maker = 0', theta('poly', 'maker', 'crypto'), 0);
+  eq('θ poly geopolitics taker = 0', theta('poly', 'taker', 'geopolitics'), 0);
+  eq('θ polyus maker = −0.0125', theta('polyus', 'maker', 'sports'), -0.0125);
+
+  for (const d of [1.05, 1.5, 1.91, 2, 2.5, 6.4]){
+    close('dec↔am roundtrip ' + d, amToDec(decToAm(d)), d, 1e-9);
+    close('dec↔prob roundtrip ' + d, probToDec(decToProb(d)), d, 1e-9);
+  }
+  close('−110 → 52.38%', decToProb(amToDec(-110)), 0.5238, 1e-4);
+  close('2.00 → +100 (even money)', decToAm(2), 100);
+  eq('frac reduce 2.50 → 3/2', decToFracString(2.5).main, '3/2');
+  eq('frac reduce 1.25 → 1/4', decToFracString(1.25).main, '1/4');
+  close('parse 6/4 → 2.5', parseFraction('6/4'), 2.5);
+
+  const fails = results.filter(r => !r.pass);
+  console.group('%cOdds & Fees self-test: ' + (results.length - fails.length) +
+    '/' + results.length + ' pass', 'color:' + (fails.length ? '#c33' : '#1c7f52'));
+  for (const r of results)
+    console[r.pass ? 'log' : 'error']((r.pass ? '✓ ' : '✗ ') + r.name +
+      (r.pass ? '' : '  got=' + r.got + ' want=' + r.want));
+  console.groupEnd();
+  return { total: results.length, fails: fails.length };
+}
+
+/* ============================================================================
+   DOM — skipped when running headless (node).
+============================================================================ */
+if (typeof document !== 'undefined' && document.getElementById('f-cents')) (function(){
+  const $ = id => document.getElementById(id);
+  const state = { p: 0.5, cat: 'sports' };
+
+  /* ---- formatting ---- */
+  const fmtAm = a => !isFinite(a) ? '—' : (a > 0 ? '+' : '−') + Math.round(Math.abs(a));
+  const fmtDec = d => !isFinite(d) ? '—' : d.toFixed(d < 10 ? 2 : d < 100 ? 1 : 0);
+  const trim = (x, dp) => {
+    let s = x.toFixed(dp);
+    if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+    return s;
+  };
+  const fmtPP = x => Math.abs(x) < 0.005 ? '±0.00' : (x > 0 ? '+' : '−') + Math.abs(x).toFixed(2);
+
+  /* ---- converter: five live-synced fields, canonical state.p ---- */
+  const fields = ['cents', 'prob', 'am', 'dec', 'frac'];
+  function renderConverter(skip){
+    const p = state.p, d = 1 / p;
+    if (skip !== 'cents') $('f-cents').value = trim(p * 100, 2);
+    if (skip !== 'prob')  $('f-prob').value  = trim(p * 100, 2);
+    if (skip !== 'am')    $('f-am').value    = fmtAm(decToAm(d));
+    if (skip !== 'dec')   $('f-dec').value   = trim(d, 3);
+    const f = decToFracString(d);
+    if (skip !== 'frac')  $('f-frac').value  = f.main;
+    setHint('frac', f.approx ? '≈ ' + f.approx : '');
+    setHint('am', Math.abs(decToAm(d)) <= 100.5 ? 'even money' : decToAm(d) > 0 ? 'underdog' : 'favourite');
+  }
+  function setHint(name, msg, bad){
+    const h = $('h-' + name);
+    h.textContent = msg || '';
+    h.classList.toggle('bad', !!bad);
+    $('f-' + name).classList.toggle('err', !!bad);
+  }
+  function onInput(which){
+    const raw = $('f-' + which).value.trim().replace('−', '-');
+    let p = null, err = null;
+    if (which === 'cents' || which === 'prob'){
+      const v = parseFloat(raw);
+      if (!isFinite(v) || v <= 0 || v >= 100) err = 'between 0 and 100'; else p = v / 100;
+    } else if (which === 'am'){
+      const v = parseFloat(raw);
+      if (!isFinite(v) || Math.abs(v) < 100) err = '±100 or more'; else p = decToProb(amToDec(v));
+    } else if (which === 'dec'){
+      const v = parseFloat(raw);
+      if (!isFinite(v) || v < 1.01) err = '1.01 or more'; else p = 1 / v;
+    } else if (which === 'frac'){
+      const v = parseFraction(raw);
+      if (v == null || v < 1.01) err = 'like 6/4'; else p = 1 / v;
+    }
+    setHint(which, err, !!err);
+    if (p == null) return;
+    state.p = p;
+    fields.filter(f => f !== which).forEach(f => setHint(f, ''));
+    renderConverter(which);
+    render();
+  }
+  fields.forEach(f => $('f-' + f).addEventListener('input', () => onInput(f)));
+
+  /* ---- category ---- */
+  const sel = $('f-cat');
+  for (const [key, c] of Object.entries(FEES.categories)){
+    const o = document.createElement('option');
+    o.value = key; o.textContent = c.label;
+    sel.appendChild(o);
+  }
+  sel.value = state.cat;
+  sel.addEventListener('change', () => { state.cat = sel.value; render(); });
+
+  /* ---- venue cards + fair strip ---- */
+  function roleData(role, th, p){
+    const cost = effCost(p, th);
+    const d = cost < 1 ? 1 / cost : NaN;
+    const delta = (cost - p) * 100;
+    const fc = feeCents(p, th);
+    const pill = Math.abs(delta) < 0.005 ? 'zero' : delta > 0 ? 'cost' : 'rebate';
+    const feeLine = Math.abs(fc) < 0.0005 ? 'no fee'
+      : (fc > 0 ? 'fee ' : 'rebate ') + Math.abs(fc).toFixed(2) + '¢/contract';
+    return { role, th, cost, d, delta, pill, feeLine };
+  }
+  const summaryCell = r =>
+    '<div class="cell">' +
+      '<div class="role">' + r.role + '</div>' +
+      '<div class="amrow"><span class="am">' + fmtAm(decToAm(r.d)) + '</span>' +
+      '<span class="pill ' + r.pill + '">' + fmtPP(r.delta) + '</span></div>' +
+    '</div>';
+  const detailCell = r =>
+    '<div class="cell">' +
+      '<div class="kv">' + fmtDec(r.d) + ' decimal</div>' +
+      '<div class="kv">BE ' + (r.cost * 100).toFixed(2) + '%</div>' +
+      '<div class="kv">' + r.feeLine + '</div>' +
+      '<div class="kv">θ ' + r.th + '</div>' +
+    '</div>';
+  function render(){
+    const p = state.p, cat = state.cat, d = 1 / p;
+    $('fair').innerHTML = 'Fair&nbsp; <b>' + fmtAm(decToAm(d)) + '</b> · ' +
+      fmtDec(d) + ' · BE ' + (p * 100).toFixed(2) + '%';
+    const open = new Set(Array.from(
+      document.querySelectorAll('#venues details[open]'), el => el.dataset.v));
+    $('venues').innerHTML = VENUES.map(v => {
+      const taker = roleData('Taker', theta(v.id, 'taker', cat), p);
+      const maker = roleData('Maker', theta(v.id, 'maker', cat), p);
+      const odds = '<div class="roles">' + summaryCell(taker) + summaryCell(maker) + '</div>';
+      return '<details class="venue' + (v.minimized ? ' min' : '') + '" data-v="' + v.id + '"' +
+        (open.has(v.id) ? ' open' : '') + '>' +
+        '<summary>' +
+          '<div class="head"><span class="name">' + v.name + '</span>' +
+          '<span class="chev">▼</span></div>' +
+          (v.minimized ? '' : odds) +
+        '</summary>' +
+        '<div class="detail">' +
+          (v.minimized ? odds : '') +
+          '<div class="roles">' + detailCell(taker) + detailCell(maker) + '</div>' +
+          '<div class="foot">' + v.foot + '</div>' +
+        '</div>' +
+      '</details>';
+    }).join('');
+  }
+
+  /* ---- explainer ---- */
+  $('expl').innerHTML =
+    '<p>Every venue charges <code>fee = θ · C · p(1−p)</code>. Per contract, the ' +
+    'effective cost is <code>p + θ·p(1−p)</code> — that number is also your ' +
+    'break-even win probability, and the effective odds are just its reciprocal. ' +
+    'Buying both sides at the same fee gives an overround of <code>2·θ·p(1−p)</code> ' +
+    '(at 50¢ on Kalshi: 3.5%, the classic bookmaker vig).</p>' +
+    '<table><thead><tr><th>Category</th><th>Kalshi</th><th>Polymarket</th><th>Polymarket US</th></tr></thead><tbody>' +
+    Object.values(FEES.categories).map(c =>
+      '<tr><td>' + c.label + '</td><td>' + c.kalshi + '</td><td>' + c.poly +
+      '</td><td>' + FEES.polyusTaker + '</td></tr>').join('') +
+    '</tbody></table>' +
+    '<p>Maker θ: Kalshi ' + FEES.makers.kalshi + ' (designated maker-fee markets only) · ' +
+    'Polymarket ' + FEES.makers.poly + ' · Polymarket US ' + FEES.makers.polyus + ' (rebate).</p>' +
+    '<ul>' +
+    '<li>Kalshi: schedule dated June 2026 (rates unchanged since Feb 2026). Fees on entry and exit; ' +
+    'per-order cent rounding not modeled.</li>' +
+    '<li>Polymarket: Fee Structure V2, effective 2026-03-30, per docs.polymarket.com. ' +
+    'Help-center pages conflict on the formula and on whether sells are exempt; ' +
+    'the docs version is modeled, entry side only. The per-market API feeSchedule ' +
+    '<code>{feeRate, exponent, takerOnly}</code> is ground truth (exponent is 1 everywhere).</li>' +
+    '<li>Polymarket US: new schedule effective 2026-07-01 — taker θ raised 0.05 → 0.06. ' +
+    'Volume taker rebates ($250K+/month: 10–50%) not modeled.</li>' +
+    '</ul>';
+
+  /* ---- theme toggle: light ↔ dark, saved; follows system until first use ---- */
+  const mq = matchMedia('(prefers-color-scheme: dark)');
+  const curDark = () => {
+    const t = document.documentElement.dataset.theme;
+    return t ? t === 'dark' : mq.matches;
+  };
+  const paintTheme = () => {
+    $('theme-btn').textContent = curDark() ? '☀' : '☾';
+    $('theme-color').setAttribute('content', curDark() ? '#101418' : '#f6f7f9');
+  };
+  $('theme-btn').addEventListener('click', () => {
+    const next = curDark() ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try{ localStorage.setItem('theme', next); }catch(e){}
+    paintTheme();
+  });
+  mq.addEventListener('change', paintTheme);
+  paintTheme();
+
+  /* ---- offline: service worker (no-op on file:// or unsupported) ---- */
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+
+  /* ---- boot ---- */
+  renderConverter(null);
+  render();
+  const t = runTests();
+  $('test-line').innerHTML = t.fails
+    ? '<span class="fail">self-test failed — see console</span>'
+    : 'self-test ' + (t.total - t.fails) + '/' + t.total;
+})();
+else if (typeof module !== 'undefined'){ // headless: run tests, non-zero exit on failure
+  const t = runTests();
+  if (t.fails) process.exitCode = 1;
+}
+</script>
+</body>
+</html>
