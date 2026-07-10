@@ -186,22 +186,23 @@ try{var _t=localStorage.getItem('theme');if(_t)document.documentElement.dataset.
     <div class="expl" id="expl"></div>
   </details>
 
-  <footer>Fee schedules verified 2026-07-02 · works offline · no dependencies · <span id="test-line">self-test —</span></footer>
+  <footer>Fee schedules verified 2026-07-10 · works offline · no dependencies · <span id="test-line">self-test —</span></footer>
 </div>
 
 <script>
 /* ============================================================================
-   FEE SCHEDULES — verified 2026-07-02 against primary sources.
+   FEE SCHEDULES — verified 2026-07-10 against primary sources.
    THIS FILE MIRRORS index.html — when fee schedules change, update the FEES
    constant in BOTH files (and bump the cache version in sw.js).
    Formula (all venues): fee = θ · C · p(1−p). This tool shows per-contract
    cost = p + θ·p(1−p); quantity-dependent cent rounding is not modeled.
 
-   KALSHI — schedule PDF re-dated "June 2026" (~eff. 2026-06-29); rates
+   KALSHI — schedule PDF re-dated "7.7.26 Update"; event-contract rates
      unchanged: taker θ 0.07 (S&P 500 / Nasdaq-100 series 0.035), maker θ
      0.0175 on designated maker-fee markets only. Fees on both buys and sells.
-   POLYMARKET (offshore) — Fee Structure V2 eff. 2026-03-30, per
-     docs.polymarket.com/trading/fees: Crypto 0.07 · Sports 0.03 ·
+   POLYMARKET (offshore) — docs.polymarket.com/trading/fees, re-checked
+     2026-07-10: Sports taker raised 0.03 → 0.05; rest unchanged from the
+     2026-03-30 V2 schedule: Crypto 0.07 ·
      Finance/Politics/Mentions/Tech 0.04 · Econ/Culture/Weather/Other 0.05 ·
      Geopolitics 0. Makers never charged. Modeled per docs, entry side only.
    POLYMARKET US — docs.polymarket.us/fees, eff. 2026-07-01: taker θ 0.06
@@ -209,11 +210,11 @@ try{var _t=localStorage.getItem('theme');if(_t)document.documentElement.dataset.
      ($250K+/mo → 10–50%) exist — footnoted, not modeled.
 ============================================================================ */
 const FEES = {
-  verified: '2026-07-02',
+  verified: '2026-07-10',
   makers: { kalshi: 0.0175, poly: 0, polyus: -0.0125 },
   polyusTaker: 0.06,
   categories: {
-    sports:      { label: 'Sports',                                kalshi: 0.07,  poly: 0.03 },
+    sports:      { label: 'Sports',                                kalshi: 0.07,  poly: 0.05 },
     crypto:      { label: 'Crypto',                                kalshi: 0.07,  poly: 0.07 },
     politics:    { label: 'Politics',                              kalshi: 0.07,  poly: 0.04 },
     finance:     { label: 'Finance',                               kalshi: 0.07,  poly: 0.04 },
@@ -305,7 +306,7 @@ function runTests(){
   const eq = (name, got, want) => results.push({ name, got, want, pass: got === want });
 
   close('kalshi sports taker 50¢ → 51.75¢', effCost(0.5, 0.07), 0.5175);
-  close('poly sports taker 50¢ → 50.75¢',   effCost(0.5, 0.03), 0.5075);
+  close('poly sports taker 50¢ → 51.25¢',   effCost(0.5, 0.05), 0.5125);
   close('polyus taker 50¢ → 51.50¢ (θ=0.06)', effCost(0.5, 0.06), 0.515);
   close('polyus maker 50¢ → 49.6875¢ (rebate)', effCost(0.5, -0.0125), 0.496875);
   close('kalshi index taker 50¢ → 50.875¢', effCost(0.5, 0.035), 0.50875);
@@ -318,6 +319,7 @@ function runTests(){
 
   eq('θ kalshi taker index = 0.035', theta('kalshi', 'taker', 'index'), 0.035);
   eq('θ polyus taker = 0.06 (2026-07-01 schedule)', theta('polyus', 'taker', 'sports'), 0.06);
+  eq('θ poly sports taker = 0.05 (2026-07 schedule)', theta('poly', 'taker', 'sports'), 0.05);
   eq('θ poly maker = 0', theta('poly', 'maker', 'crypto'), 0);
   eq('θ poly geopolitics taker = 0', theta('poly', 'taker', 'geopolitics'), 0);
   eq('θ polyus maker = −0.0125', theta('polyus', 'maker', 'sports'), -0.0125);
@@ -478,9 +480,10 @@ if (typeof document !== 'undefined' && document.getElementById('f-cents')) (func
     '<p>Maker θ: Kalshi ' + FEES.makers.kalshi + ' (designated maker-fee markets only) · ' +
     'Polymarket ' + FEES.makers.poly + ' · Polymarket US ' + FEES.makers.polyus + ' (rebate).</p>' +
     '<ul>' +
-    '<li>Kalshi: schedule dated June 2026 (rates unchanged since Feb 2026). Fees on entry and exit; ' +
+    '<li>Kalshi: schedule dated July 2026 (event-contract rates unchanged since Feb 2026). Fees on entry and exit; ' +
     'per-order cent rounding not modeled.</li>' +
-    '<li>Polymarket: Fee Structure V2, effective 2026-03-30, per docs.polymarket.com. ' +
+    '<li>Polymarket: per docs.polymarket.com as of 2026-07-10 — Sports taker raised 0.03 → 0.05 ' +
+    'since the March V2 schedule; other categories unchanged. ' +
     'Help-center pages conflict on the formula and on whether sells are exempt; ' +
     'the docs version is modeled, entry side only. The per-market API feeSchedule ' +
     '<code>{feeRate, exponent, takerOnly}</code> is ground truth (exponent is 1 everywhere).</li>' +
