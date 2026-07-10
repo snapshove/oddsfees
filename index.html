@@ -307,7 +307,7 @@ function decToFracString(d){
   return { main: exact, approx: nearestUK(x) };
 }
 function parseFraction(str){
-  const m = String(str).trim().match(/^(\d+(?:\.\d+)?)\s*[\/:]\s*(\d+(?:\.\d+)?)$/);
+  const m = String(str).trim().replace(/^≈\s*/, '').match(/^(\d+(?:\.\d+)?)\s*[\/:]\s*(\d+(?:\.\d+)?)$/);
   if (!m) return null;
   const n = parseFloat(m[1]), d = parseFloat(m[2]);
   if (!(d > 0) || n < 0) return null;
@@ -354,6 +354,7 @@ function runTests(){
   eq('frac reduce 2.50 → 3/2', decToFracString(2.5).main, '3/2');
   eq('frac reduce 1.25 → 1/4', decToFracString(1.25).main, '1/4');
   close('parse 6/4 → 2.5', parseFraction('6/4'), 2.5);
+  close('parse ≈ 6/4 → 2.5 (approx prefix tolerated)', parseFraction('≈ 6/4'), 2.5);
 
   const fails = results.filter(r => !r.pass);
   console.group('%cOdds & Fees self-test: ' + (results.length - fails.length) +
@@ -375,6 +376,7 @@ if (typeof document !== 'undefined' && document.getElementById('f-cents')) (func
   /* ---- formatting ---- */
   const fmtAm = a => !isFinite(a) ? '—' : (a > 0 ? '+' : '−') + Math.round(Math.abs(a));
   const fmtDec = d => !isFinite(d) ? '—' : d.toFixed(d < 10 ? 2 : d < 100 ? 1 : 0);
+  const fmtDec4 = d => !isFinite(d) ? '—' : d.toFixed(4);
   const trim = (x, dp) => {
     let s = x.toFixed(dp);
     if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
@@ -391,8 +393,13 @@ if (typeof document !== 'undefined' && document.getElementById('f-cents')) (func
     if (skip !== 'am')    $('f-am').value    = fmtAm(decToAm(d));
     if (skip !== 'dec')   $('f-dec').value   = trim(d, 3);
     const f = decToFracString(d);
-    if (skip !== 'frac')  $('f-frac').value  = f.main;
-    setHint('frac', f.approx ? '≈ ' + f.approx : '');
+    if (skip !== 'frac'){
+      /* ladder approximation up front; exact fraction as the hint */
+      $('f-frac').value = f.approx ? '≈ ' + f.approx : f.main;
+      setHint('frac', f.approx ? '= ' + f.main : '');
+    } else {
+      setHint('frac', f.approx ? '≈ ' + f.approx : '');
+    }
     setHint('am', Math.abs(decToAm(d)) <= 100.5 ? 'even money' : decToAm(d) > 0 ? 'underdog' : 'favourite');
   }
   function setHint(name, msg, bad){
@@ -443,8 +450,8 @@ if (typeof document !== 'undefined' && document.getElementById('f-cents')) (func
     const delta = (cost - p) * 100;
     const fc = feeCents(p, th);
     const pill = Math.abs(delta) < 0.005 ? 'zero' : delta > 0 ? 'cost' : 'rebate';
-    const feeLine = Math.abs(fc) < 0.0005 ? 'no fee'
-      : (fc > 0 ? 'fee ' : 'rebate ') + Math.abs(fc).toFixed(2) + '¢/contract';
+    const feeLine = Math.abs(fc) < 0.00005 ? 'no fee'
+      : (fc > 0 ? 'fee ' : 'rebate ') + Math.abs(fc).toFixed(4) + '¢/contract';
     return { role, th, cost, d, delta, pill, feeLine };
   }
   const summaryCell = r =>
@@ -455,8 +462,8 @@ if (typeof document !== 'undefined' && document.getElementById('f-cents')) (func
     '</div>';
   const detailCell = r =>
     '<div class="cell">' +
-      '<div class="kv">' + fmtDec(r.d) + ' decimal</div>' +
-      '<div class="kv">BE ' + (r.cost * 100).toFixed(2) + '%</div>' +
+      '<div class="kv">' + fmtDec4(r.d) + ' decimal</div>' +
+      '<div class="kv">BE ' + (r.cost * 100).toFixed(4) + '%</div>' +
       '<div class="kv">' + r.feeLine + '</div>' +
       '<div class="kv">θ ' + r.th + '</div>' +
     '</div>';
@@ -464,8 +471,11 @@ if (typeof document !== 'undefined' && document.getElementById('f-cents')) (func
     const p = state.p, cat = state.cat, d = 1 / p;
     $('fair').innerHTML = 'Fair&nbsp; <b>' + fmtAm(decToAm(d)) + '</b> · ' +
       fmtDec(d) + ' · BE ' + (p * 100).toFixed(2) + '%';
-    const open = new Set(Array.from(
-      document.querySelectorAll('#venues details[open]'), el => el.dataset.v));
+    const open = document.querySelector('#venues details')
+      ? new Set(Array.from(
+          document.querySelectorAll('#venues details[open]'), el => el.dataset.v))
+      /* first render only: non-minimized venues start expanded */
+      : new Set(VENUES.filter(v => !v.minimized).map(v => v.id));
     $('venues').innerHTML = VENUES.map(v => {
       const taker = roleData('Taker', theta(v.id, 'taker', cat), p);
       const maker = roleData('Maker', theta(v.id, 'maker', cat), p);
