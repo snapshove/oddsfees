@@ -113,6 +113,8 @@ try{var _t=localStorage.getItem('theme');if(_t)document.documentElement.dataset.
   .venue .detail{margin-top:10px}
   .detail .roles + .roles{margin-top:8px}
   .detail .kv{font-size:12.5px;color:var(--muted);padding:1px 0}
+  .detail .opt{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);padding:4px 0 1px;cursor:pointer}
+  .detail .opt input{margin:0}
   .venue .foot{
     font-size:11.5px;color:var(--faint);border-top:1px solid var(--line);
     padding-top:8px;margin-top:10px;
@@ -211,9 +213,11 @@ try{var _t=localStorage.getItem('theme');if(_t)document.documentElement.dataset.
      from the 2026-03-30 V2 schedule (docs no longer state a version or
      effective date): Crypto 0.07 · Finance/Politics/Mentions/Tech 0.04 ·
      Economics/Culture/Weather/Other 0.05 · Geopolitics 0. Makers never
-     charged; 15–25% of collected taker fees is redistributed to makers
-     daily, and a tiered taker-rebate program exists (tiers unpublished) —
-     neither changes the fee paid at trade time. Modeled per docs, entry side
+     charged; the Maker Rebates Program redistributes a category share of
+     taker fees to makers daily (Sports 15% · Crypto 20% · others 25%),
+     optionally modeled via the maker-rebate checkbox as θ = −share·takerθ
+     (an estimate — real payouts are daily, pro-rata). A tiered taker-rebate
+     program exists (tiers unpublished), not modeled. Modeled per docs, entry side
      only. Known doc conflicts, resolved toward docs.polymarket.com: help
      center adds a leading p to the formula (breaks its own symmetry claim);
      help center says sells are exempt from taker fees (docs silent); rounding
@@ -232,14 +236,14 @@ const FEES = {
   makers: { kalshi: 0.0175, poly: 0, polyus: -0.0125 },
   polyusTaker: 0.06,
   categories: {
-    sports:      { label: 'Sports',                                kalshi: 0.07,  poly: 0.05 },
-    crypto:      { label: 'Crypto',                                kalshi: 0.07,  poly: 0.07 },
-    politics:    { label: 'Politics',                              kalshi: 0.07,  poly: 0.04 },
-    finance:     { label: 'Finance',                               kalshi: 0.07,  poly: 0.04 },
-    index:       { label: 'S&P 500 / Nasdaq-100 index',            kalshi: 0.035, poly: 0.04 },
-    tech:        { label: 'Tech & mentions',                       kalshi: 0.07,  poly: 0.04 },
-    econOther:   { label: 'Economics / culture / weather / other', kalshi: 0.07,  poly: 0.05 },
-    geopolitics: { label: 'Geopolitics',                           kalshi: 0.07,  poly: 0 },
+    sports:      { label: 'Sports',                                kalshi: 0.07,  poly: 0.05, polyRb: 0.15 },
+    crypto:      { label: 'Crypto',                                kalshi: 0.07,  poly: 0.07, polyRb: 0.20 },
+    politics:    { label: 'Politics',                              kalshi: 0.07,  poly: 0.04, polyRb: 0.25 },
+    finance:     { label: 'Finance',                               kalshi: 0.07,  poly: 0.04, polyRb: 0.25 },
+    index:       { label: 'S&P 500 / Nasdaq-100 index',            kalshi: 0.035, poly: 0.04, polyRb: 0.25 },
+    tech:        { label: 'Tech & mentions',                       kalshi: 0.07,  poly: 0.04, polyRb: 0.25 },
+    econOther:   { label: 'Economics / culture / weather / other', kalshi: 0.07,  poly: 0.05, polyRb: 0.25 },
+    geopolitics: { label: 'Geopolitics',                           kalshi: 0.07,  poly: 0,    polyRb: 0 },
   },
 };
 const VENUES = [
@@ -255,6 +259,13 @@ function theta(venue, role, cat){
   if (role === 'maker') return FEES.makers[venue];
   if (venue === 'polyus') return FEES.polyusTaker;
   return FEES.categories[cat][venue];
+}
+/* optional Polymarket maker-side model: the category's Maker Rebates share of
+   the taker fee, credited back per contract (an estimate — the real program
+   pays out daily, pro-rata across makers) */
+function polyMakerRebateTheta(cat){
+  const c = FEES.categories[cat];
+  return -Number((c.polyRb * c.poly).toFixed(6));
 }
 /* per-contract cost in $, which is also the break-even win probability */
 function effCost(p, th){ return p + th * p * (1 - p); }
@@ -340,6 +351,8 @@ function runTests(){
   eq('θ kalshi taker index = 0.035', theta('kalshi', 'taker', 'index'), 0.035);
   eq('θ polyus taker = 0.06 (2026-07-01 schedule)', theta('polyus', 'taker', 'sports'), 0.06);
   eq('θ poly sports taker = 0.05 (2026-07 schedule)', theta('poly', 'taker', 'sports'), 0.05);
+  close('θ poly sports maker rebate = −0.0075 (15% of taker)', polyMakerRebateTheta('sports'), -0.0075);
+  close('poly maker rebate 50¢ → 49.8125¢', effCost(0.5, polyMakerRebateTheta('sports')), 0.498125);
   eq('θ poly maker = 0', theta('poly', 'maker', 'crypto'), 0);
   eq('θ poly geopolitics taker = 0', theta('poly', 'taker', 'geopolitics'), 0);
   eq('θ polyus maker = −0.0125', theta('polyus', 'maker', 'sports'), -0.0125);
@@ -371,7 +384,7 @@ function runTests(){
 ============================================================================ */
 if (typeof document !== 'undefined' && document.getElementById('f-cents')) (function(){
   const $ = id => document.getElementById(id);
-  const state = { p: 0.5, cat: 'sports' };
+  const state = { p: 0.5, cat: 'sports', polyRb: false };
 
   /* ---- formatting ---- */
   const fmtAm = a => !isFinite(a) ? '—' : (a > 0 ? '+' : '−') + Math.round(Math.abs(a));
@@ -443,6 +456,11 @@ if (typeof document !== 'undefined' && document.getElementById('f-cents')) (func
   sel.value = state.cat;
   sel.addEventListener('change', () => { state.cat = sel.value; render(); });
 
+  /* Polymarket maker-rebate toggle — delegated: the cards re-render on every input */
+  $('venues').addEventListener('change', e => {
+    if (e.target.id === 'poly-rb'){ state.polyRb = e.target.checked; render(); }
+  });
+
   /* ---- venue cards + fair strip ---- */
   function roleData(role, th, p){
     const cost = effCost(p, th);
@@ -460,12 +478,13 @@ if (typeof document !== 'undefined' && document.getElementById('f-cents')) (func
       '<div class="amrow"><span class="am">' + fmtAm(decToAm(r.d)) + '</span>' +
       '<span class="pill ' + r.pill + '">' + fmtPP(r.delta) + '</span></div>' +
     '</div>';
-  const detailCell = r =>
+  const detailCell = (r, extra) =>
     '<div class="cell">' +
       '<div class="kv">' + fmtDec4(r.d) + ' decimal</div>' +
       '<div class="kv">BE ' + (r.cost * 100).toFixed(4) + '%</div>' +
       '<div class="kv">' + r.feeLine + '</div>' +
       '<div class="kv">θ ' + r.th + '</div>' +
+      (extra || '') +
     '</div>';
   function render(){
     const p = state.p, cat = state.cat, d = 1 / p;
@@ -478,7 +497,14 @@ if (typeof document !== 'undefined' && document.getElementById('f-cents')) (func
       : new Set(VENUES.filter(v => !v.minimized).map(v => v.id));
     $('venues').innerHTML = VENUES.map(v => {
       const taker = roleData('Taker', theta(v.id, 'taker', cat), p);
-      const maker = roleData('Maker', theta(v.id, 'maker', cat), p);
+      const rbShare = v.id === 'poly' ? FEES.categories[cat].polyRb : 0;
+      const maker = roleData('Maker', rbShare && state.polyRb
+        ? polyMakerRebateTheta(cat) : theta(v.id, 'maker', cat), p);
+      const rbOpt = rbShare
+        ? '<label class="opt"><input type="checkbox" id="poly-rb"' +
+          (state.polyRb ? ' checked' : '') + '> apply maker rebate (' +
+          Math.round(rbShare * 100) + '% of taker fees)</label>'
+        : '';
       const odds = '<div class="roles">' + summaryCell(taker) + summaryCell(maker) + '</div>';
       return '<details class="venue' + (v.minimized ? ' min' : '') + '" data-v="' + v.id + '"' +
         (open.has(v.id) ? ' open' : '') + '>' +
@@ -489,7 +515,7 @@ if (typeof document !== 'undefined' && document.getElementById('f-cents')) (func
         '</summary>' +
         '<div class="detail">' +
           (v.minimized ? odds : '') +
-          '<div class="roles">' + detailCell(taker) + detailCell(maker) + '</div>' +
+          '<div class="roles">' + detailCell(taker) + detailCell(maker, rbOpt) + '</div>' +
           '<div class="foot">' + v.foot + '</div>' +
         '</div>' +
       '</details>';
@@ -517,7 +543,10 @@ if (typeof document !== 'undefined' && document.getElementById('f-cents')) (func
     'since the March V2 schedule; other categories unchanged. ' +
     'Help-center pages conflict on the formula and on whether sells are exempt; ' +
     'the docs version is modeled, entry side only. The per-market API feeSchedule ' +
-    '<code>{feeRate, exponent, takerOnly}</code> is ground truth (exponent is 1 everywhere).</li>' +
+    '<code>{feeRate, exponent, takerOnly}</code> is ground truth (exponent is 1 everywhere). ' +
+    'The maker-rebate checkbox credits the category share of the Maker Rebates Program ' +
+    '(Sports 15% · Crypto 20% · others 25%) of the taker fee per contract — an estimate: ' +
+    'the real program redistributes daily, pro-rata across makers.</li>' +
     '<li>Polymarket US: new schedule effective 2026-07-01 — taker θ raised 0.05 → 0.06. ' +
     'Volume taker rebates ($250K+/month: 10–50%) not modeled.</li>' +
     '</ul>';

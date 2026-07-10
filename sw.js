@@ -2,7 +2,7 @@
    BUMP THE VERSION STRING below whenever index.html / mobile.html change
    (e.g. fee-schedule updates), or installed apps will keep serving the old
    cached copy. */
-const CACHE = 'oddsfees-v4';
+const CACHE = 'oddsfees-v5';
 const ASSETS = ['./', './index.html', './mobile.html', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
